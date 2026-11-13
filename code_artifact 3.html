@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>أبطال لغتي - لعبة روبلكس التعليمية</title>
+    <!-- تحميل مكتبة Tailwind CSS للتنسيق -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- تحميل مكتبة Three.js للرسومات ثلاثية الأبعاد -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- تحميل خط تجوال العربي الطفولي الواضح -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Tajawal', sans-serif;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+        }
+
+        #game-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* تأثير أزرار روبلكس ثلاثية الأبعاد */
+        .roblox-btn {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.25), 0 10px 15px rgba(0, 0, 0, 0.15);
+            position: relative;
+            top: 0;
+        }
+
+        .roblox-btn:active:not(:disabled) {
+            top: 4px;
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25), 0 4px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .roblox-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        /* حركات تشجيعية */
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 1; }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .animate-bounce-in {
+            animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* زجاجية شفافة جميلة */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(10px);
+            border: 4px solid #ffffff;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- حاوية الرسم ثلاثي الأبعاد -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- شاشة البداية (تسجيل اسم البطل) -->
+    <div id="start-screen" class="fixed inset-0 z-30 flex items-center justify-center p-4 bg-sky-900/40 backdrop-blur-sm overflow-y-auto">
+        <div class="glass-panel rounded-3xl max-w-md w-full p-6 sm:p-8 text-center animate-bounce-in my-auto">
+            <h1 class="text-4xl sm:text-5xl font-black text-sky-600 mb-1 drop-shadow-sm">
+                أبطال لغتي
+            </h1>
+            <p class="text-indigo-600 font-extrabold text-base sm:text-lg mb-3">
+                في مهارتي أسلوب التعجب وتحويل النكرة والمعرفة
+            </p>
+
+            <!-- شارة الصف الثالث الابتدائي -->
+            <div class="inline-flex items-center justify-center bg-gradient-to-r from-amber-400 to-orange-500 text-white font-black px-5 py-1.5 rounded-full text-sm sm:text-base shadow-md mb-5">
+                ⭐ الصف الثالث الابتدائي ⭐
+            </div>
+
+            <!-- حقل إدخال اسم الطالب -->
+            <div class="mb-6 text-right">
+                <label for="student-name" class="block text-slate-700 font-extrabold text-lg mb-2">
+                    اسم الطالب:
+                </label>
+                <input type="text" id="student-name" placeholder="اكتب اسم الطالب هنا..." maxlength="25"
+                    class="w-full px-4 py-3.5 text-lg font-bold text-slate-800 bg-sky-50 border-4 border-sky-300 rounded-2xl focus:outline-none focus:border-sky-500 transition-colors text-center shadow-inner">
+                <p id="name-error" class="text-red-500 font-bold text-sm mt-1.5 hidden text-center">
+                    فضلاً اكتب اسم الطالب لنبدأ المغامرة!
+                </p>
+            </div>
+
+            <!-- زر ابدأ اللعب بأيقونة شخصية روبلكس -->
+            <button id="start-btn" class="roblox-btn w-full bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white font-black text-2xl py-4 rounded-2xl border-b-4 border-emerald-800 flex items-center justify-center gap-3">
+                <span>ابدأ اللعب</span>
+                <svg class="w-9 h-9 drop-shadow" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <!-- قبعة روبلكس حمراء -->
+                    <rect x="20" y="4" width="24" height="7" rx="2" fill="#EF4444"/>
+                    <rect x="16" y="9" width="28" height="4" rx="1.5" fill="#DC2626"/>
+                    <!-- رأس روبلكس -->
+                    <rect x="21" y="13" width="22" height="19" rx="4" fill="#FCD34D" stroke="#D97706" stroke-width="2"/>
+                    <!-- عيون وابتسامة -->
+                    <circle cx="28" cy="21" r="2.2" fill="#1E293B"/>
+                    <circle cx="36" cy="21" r="2.2" fill="#1E293B"/>
+                    <path d="M27 26.5C29.5 29 34.5 29 37 26.5" stroke="#1E293B" stroke-width="2.4" stroke-linecap="round"/>
+                    <!-- ذراعان -->
+                    <rect x="10" y="34" width="8" height="17" rx="3" fill="#FCD34D" stroke="#D97706" stroke-width="1.5"/>
+                    <rect x="46" y="34" width="8" height="17" rx="3" fill="#FCD34D" stroke="#D97706" stroke-width="1.5"/>
+                    <!-- جذع روبلكس -->
+                    <rect x="19" y="33" width="26" height="19" rx="3" fill="#3B82F6" stroke="#1D4ED8" stroke-width="2"/>
+                    <!-- ساقان -->
+                    <rect x="20" y="52" width="10" height="10" rx="2" fill="#1E3A8A"/>
+                    <rect x="34" y="52" width="10" height="10" rx="2" fill="#1E3A8A"/>
+                </svg>
+            </button>
+
+            <!-- توقيع المعلمة -->
+            <div class="mt-6 pt-4 border-t-2 border-slate-200/80">
+                <p class="text-slate-600 font-extrabold text-sm sm:text-base">
+                    تصميم المعلمة: <span class="text-indigo-600">بدرية حكمي</span> 🌷
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- واجهة اللعب الرئيسية (HUD) -->
+    <div id="game-hud" class="fixed inset-0 z-20 pointer-events-none flex flex-col justify-between p-2 sm:p-4 hidden">
+        
+        <!-- الشريط العلوي: معلومات الطالب، النجوم، المرحلة، السؤال -->
+        <div class="w-full max-w-4xl mx-auto flex flex-col gap-1.5 sm:gap-2">
+            <!-- شريط الحالة -->
+            <div class="flex flex-wrap items-center justify-between gap-1.5 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl shadow-md border border-white pointer-events-auto">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-lg sm:text-xl">👦</span>
+                    <span id="hud-name" class="font-extrabold text-slate-800 text-xs sm:text-base">البطل</span>
+                </div>
+
+                <div class="flex items-center gap-1.5 sm:gap-3">
+                    <!-- عداد المرحلة والمتبقي على الفوز -->
+                    <div class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-lg font-extrabold text-[11px] sm:text-sm border border-indigo-200">
+                        المرحلة <span id="hud-level" class="text-indigo-600 text-xs sm:text-base">1</span>/10
+                        <span class="mx-0.5 text-indigo-300">|</span>
+                        المتبقي: <span id="hud-remaining" class="text-rose-600 text-xs sm:text-base">10</span> 🏁
+                    </div>
+
+                    <!-- عداد النجوم والنقاط -->
+                    <div class="flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded-lg font-extrabold text-xs sm:text-sm border border-amber-300">
+                        <span class="text-sm sm:text-base">⭐</span>
+                        <span id="hud-stars" class="text-xs sm:text-base">0</span>
+                    </div>
+
+                    <!-- أيقونة وعداد الوقت المستهلك -->
+                    <div class="flex items-center gap-1 bg-sky-100 text-sky-800 px-2 py-0.5 rounded-lg font-extrabold text-xs sm:text-sm border border-sky-300" title="الوقت المستهلك">
+                        <span class="text-sm sm:text-base">⏱️</span>
+                        <span id="hud-timer" class="text-xs sm:text-base font-black tabular-nums">00:00</span>
+                    </div>
+
+                    <!-- زر الصوت -->
+                    <button id="sound-toggle" class="bg-slate-100 hover:bg-slate-200 p-1 sm:p-1.5 rounded-lg text-slate-700 text-xs sm:text-base transition" title="كتم/تشغيل الصوت">
+                        🔊
+                    </button>
+                </div>
+            </div>
+
+            <!-- شريط التقدم البصري للمراحل -->
+            <div class="w-full bg-white/60 h-2 rounded-full overflow-hidden shadow-inner border border-white">
+                <div id="progress-bar" class="bg-gradient-to-l from-emerald-400 to-teal-500 h-full transition-all duration-500 rounded-full" style="width: 0%"></div>
+            </div>
+
+            <!-- بطاقة السؤال المدمجة لعدم حجب ساحة اللعب -->
+            <div id="question-card" class="glass-panel rounded-2xl px-3 py-2 sm:px-5 sm:py-3 text-center shadow-lg pointer-events-auto border-b-4 border-sky-400">
+                <div class="flex items-center justify-center gap-2 mb-0.5">
+                    <span class="inline-block bg-sky-100 text-sky-700 font-extrabold text-[11px] sm:text-xs px-2.5 py-0.5 rounded-full" id="question-category">
+                        مهارة أسلوب التعجب
+                    </span>
+                    <div class="flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded-full border border-slate-200">
+                        <button id="zoom-in-btn" class="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-sky-500 hover:bg-sky-600 text-white font-black text-xs flex items-center justify-center" title="تكبير">➕</button>
+                        <button id="zoom-out-btn" class="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-sky-500 hover:bg-sky-600 text-white font-black text-xs flex items-center justify-center" title="تصغير">➖</button>
+                    </div>
+                </div>
+                <h2 id="question-text" class="text-sm sm:text-xl font-black text-slate-800 leading-snug">
+                    السؤال يظهر هنا...
+                </h2>
+            </div>
+        </div>
+
+        <!-- منطقة الرسائل التفاعلية وأزرار التحكم السفلية -->
+        <div class="w-full max-w-4xl mx-auto flex flex-col items-center gap-3 mb-1 sm:mb-2">
+            
+            <!-- صندوق الرسائل التشجيعية -->
+            <div id="feedback-box" class="hidden glass-panel rounded-2xl px-6 py-3 text-center shadow-2xl pointer-events-auto animate-bounce-in">
+                <p id="feedback-text" class="text-xl sm:text-2xl font-black"></p>
+                
+                <!-- أزرار التحكم بعد الإجابة -->
+                <div id="action-buttons" class="mt-3 flex flex-wrap justify-center gap-3">
+                    <button id="retry-btn" class="hidden roblox-btn bg-gradient-to-b from-amber-400 to-orange-500 text-white font-extrabold px-6 py-2.5 rounded-xl text-lg border-b-4 border-orange-700">
+                        🔄 إعادة المحاولة
+                    </button>
+                    <button id="next-btn" class="hidden roblox-btn bg-gradient-to-b from-sky-400 to-blue-600 text-white font-extrabold px-6 py-2.5 rounded-xl text-lg border-b-4 border-blue-800">
+                        المرحلة التالية ⬅️
+                    </button>
+                </div>
+            </div>
+
+            <!-- شريط حقوق المعلمة الصغير -->
+            <div class="text-white/90 font-bold text-xs sm:text-sm drop-shadow">
+                تصميم المعلمة: بدرية حكمي
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة النهاية والاحتفال -->
+    <div id="end-screen" class="fixed inset-0 z-30 hidden flex items-center justify-center p-4 bg-indigo-950/60 backdrop-blur-md overflow-y-auto">
+        <div class="glass-panel rounded-3xl max-w-lg w-full p-6 sm:p-8 text-center animate-bounce-in border-4 border-amber-300 my-auto">
+            <div class="text-5xl sm:text-6xl mb-2 animate-float">🏆🇸🇦🏆</div>
+            
+            <h2 class="text-2xl sm:text-3xl font-black text-emerald-600 mb-1">
+                مبارك لك يا بطل لغتي!
+            </h2>
+            <p id="final-student-name" class="text-xl sm:text-2xl font-extrabold text-slate-800 mb-4">
+                البطل المبدع
+            </p>
+
+            <!-- بطاقة النتيجة والنجوم -->
+            <div class="bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-100 border-2 border-amber-400 rounded-2xl p-4 mb-4 shadow-inner">
+                <div class="flex justify-around items-center">
+                    <div>
+                        <p class="text-slate-600 font-bold text-xs sm:text-sm">النجوم المكتسبة</p>
+                        <p class="text-2xl sm:text-3xl font-black text-amber-600 mt-1">
+                            <span id="final-stars">10</span> / 10 ⭐
+                        </p>
+                    </div>
+                    <div class="h-12 w-0.5 bg-amber-300"></div>
+                    <div>
+                        <p class="text-slate-600 font-bold text-xs sm:text-sm">مجموع النقاط</p>
+                        <p class="text-2xl sm:text-3xl font-black text-indigo-600 mt-1">
+                            <span id="final-score">100</span> 💎
+                        </p>
+                    </div>
+                    <div class="h-12 w-0.5 bg-amber-300"></div>
+                    <div>
+                        <p class="text-slate-600 font-bold text-xs sm:text-sm">الوقت المستهلك</p>
+                        <p class="text-2xl sm:text-3xl font-black text-sky-600 mt-1 tabular-nums">
+                            <span id="final-time">00:00</span> ⏱️
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- العبارة الوطنية المطلوبة -->
+            <div class="bg-gradient-to-b from-emerald-600 to-emerald-800 text-white p-4 rounded-2xl shadow-lg border-2 border-emerald-400 mb-5">
+                <p class="text-lg sm:text-xl font-black leading-relaxed">
+                    «أنا جندي الوطن بعلمي وأخلاقي وعملي واجتهادي»
+                </p>
+            </div>
+
+            <!-- أزرار شاشة النهاية: شهادة الإنجاز + اللعب من جديد -->
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button id="show-cert-btn" class="roblox-btn flex-1 bg-gradient-to-b from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-black text-lg py-3 rounded-2xl border-b-4 border-orange-700">
+                    📜 شهادة الإنجاز
+                </button>
+                <button id="show-leaderboard-btn" class="roblox-btn flex-1 bg-gradient-to-b from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-black text-lg py-3 rounded-2xl border-b-4 border-purple-800">
+                    🏆 لوحة الشرف
+                </button>
+            </div>
+
+            <div class="mt-3">
+                <button id="restart-all-btn" class="roblox-btn w-full bg-gradient-to-b from-sky-400 to-blue-600 hover:from-sky-500 hover:to-blue-700 text-white font-black text-lg py-3 rounded-2xl border-b-4 border-blue-800">
+                    🔄 العب من جديد
+                </button>
+            </div>
+
+            <p class="mt-3 text-slate-600 font-extrabold text-sm">
+                تصميم المعلمة: <span class="text-indigo-600">بدرية حكمي</span>
+            </p>
+        </div>
+    </div>
+
+    <!-- نافذة لوحة الشرف وأسماء الأصدقاء -->
+    <div id="leaderboard-modal" class="fixed inset-0 z-40 hidden flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+        <div class="glass-panel rounded-3xl max-w-lg w-full p-6 text-center shadow-2xl border-4 border-indigo-400 animate-bounce-in max-h-[85vh] flex flex-col">
+            <h3 class="text-2xl font-black text-indigo-700 mb-2">🏆 لوحة شرف أبطال لغتي 🏆</h3>
+            <p class="text-slate-600 font-bold text-sm mb-4">قائمة الأصدقاء الذين اجتازوا التحدي بنجاح</p>
+
+            <div id="leaderboard-list" class="flex-1 overflow-y-auto space-y-2 mb-4 px-1 text-right max-h-64">
+                <!-- يتم تعبئة النتائج ديناميكياً هنا -->
+            </div>
+
+            <button id="close-leaderboard-btn" class="roblox-btn bg-slate-200 hover:bg-slate-300 text-slate-800 font-extrabold px-6 py-2.5 rounded-xl text-base border-b-4 border-slate-400">
+                إغلاق ✖️
+            </button>
+        </div>
+    </div>
+
+    <!-- نافذة شهادة الإنجاز القابلة للحفظ والطباعة -->
+    <div id="certificate-modal" class="fixed inset-0 z-40 hidden flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+        <div class="bg-white rounded-3xl max-w-2xl w-full p-4 sm:p-6 text-center shadow-2xl border-4 border-amber-400 animate-bounce-in max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl sm:text-2xl font-black text-slate-800 mb-3">🎓 شهادة إنجاز بطل لغتي 🎓</h3>
+            <div class="overflow-hidden rounded-2xl border-2 border-amber-300 shadow-md mb-4 bg-amber-50">
+                <canvas id="cert-canvas" width="900" height="630" class="w-full h-auto block"></canvas>
+            </div>
+            <div class="flex flex-wrap justify-center gap-3">
+                <button id="download-cert-btn" class="roblox-btn bg-gradient-to-b from-emerald-400 to-emerald-600 text-white font-black px-6 py-3 rounded-xl text-base sm:text-lg border-b-4 border-emerald-800">
+                    📥 حفظ الشهادة كصورة
+                </button>
+                <button id="close-cert-btn" class="roblox-btn bg-slate-200 hover:bg-slate-300 text-slate-800 font-extrabold px-6 py-3 rounded-xl text-base sm:text-lg border-b-4 border-slate-400">
+                    إغلاق ✖️
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * =================================================================
+         * 1. بنك الأسئلة (10 مراحل متدرجة من السهل إلى الأصعب)
+         * الموضوع: أسلوب التعجب + تحويل المعرفة إلى نكرة والعكس (الصف الثالث الابتدائي)
+         * =================================================================
+         */
+        const QUESTIONS = [
+            // المرحلة 1 (سهل جداً - أسلوب التعجب)
+            {
+                level: 1,
+                category: "أسلوب التعجب",
+                question: "أيّ الجمل التالية تمثّل أسلوب تعجّب صحيح؟",
+                options: ["ما أجملَ الربيعَ!", "هل تحبُّ الربيعَ؟", "اكتبْ درسَكَ يا بطل."],
+                correct: 0
+            },
+            // المرحلة 2 (سهل - معرفة ونكرة)
+            {
+                level: 2,
+                category: "النكرة والمعرفة",
+                question: "كلمة (كتابٌ) نكرة، كيف نجعلها معرفة بـ (ال)؟",
+                options: ["كتابٍ", "الكتابُ", "كتابان"],
+                correct: 1
+            },
+            // المرحلة 3 (سهل - أسلوب التعجب)
+            {
+                level: 3,
+                category: "أسلوب التعجب",
+                question: "ما العلامة المناسبة في نهاية جملة: ما أروعَ السماءَ ( ... )",
+                options: ["؟", "!", "."],
+                correct: 1
+            },
+            // المرحلة 4 (متوسط - تحويل المعرفة إلى نكرة)
+            {
+                level: 4,
+                category: "تحويل المعرفة إلى نكرة",
+                question: "حوّل الكلمة المعرفة (المدرسةُ) إلى نكرة:",
+                options: ["مدرسةٌ", "المدارسُ", "مدرستي"],
+                correct: 0
+            },
+            // المرحلة 5 (متوسط - أسلوب التعجب)
+            {
+                level: 5,
+                category: "أسلوب التعجب",
+                question: "تَعَجَّب من طول النخلة، فنقول:",
+                options: ["النخلةُ طويلةٌ.", "ما أطولَ النخلةَ!", "كم نخلةً في المزرعة؟"],
+                correct: 1
+            },
+            // المرحلة 6 (متوسط - تحويل النكرة إلى معرفة)
+            {
+                level: 6,
+                category: "تحويل النكرة إلى معرفة",
+                question: "حوّل الكلمة النكرة (شجرةٌ) إلى معرفة:",
+                options: ["أشجارٌ", "شجرةً", "الشجرةُ"],
+                correct: 2
+            },
+            // المرحلة 7 (متوسط متقدم - أسلوب التعجب)
+            {
+                level: 7,
+                category: "أسلوب التعجب",
+                question: "أكمل أسلوب التعجب: ما .......... البحرَ!",
+                options: ["أوسعَ", "واسعٌ", "يتسعُ"],
+                correct: 0
+            },
+            // المرحلة 8 (متقدم - تمييز المعرفة والنكرة)
+            {
+                level: 8,
+                category: "النكرة والمعرفة",
+                question: "أيّ الكلمات التالية تُعدّ (نكرة)؟",
+                options: ["القلمُ", "طالبٌ", "الوطنُ"],
+                correct: 1
+            },
+            // المرحلة 9 (متقدم - تحويل المعرفة إلى نكرة في جملة)
+            {
+                level: 9,
+                category: "تحويل المعرفة إلى نكرة",
+                question: "عند تحويل (الحديقةُ جميلةٌ) لتبدأ بنكرة تصبح:",
+                options: ["حديقةٌ جميلةٌ", "الحديقةُ الجميلةُ", "ما أجملَ الحديقةَ!"],
+                correct: 0
+            },
+            // المرحلة 10 (تحدي الأبطال - دمج المهارات)
+            {
+                level: 10,
+                category: "تحدي أبطال لغتي 🌟",
+                question: "اختر أسلوب التعجب الصحيح الذي يحتوي على اسم معرفة:",
+                options: ["ما أنظفَ الشارعَ!", "الشارعُ نظيفٌ جداً.", "نظّفْ شارعَكَ يا بطل."],
+                correct: 0
+            }
+        ];
+
+        /**
+         * =================================================================
+         * 2. نظام المؤثرات الصوتية اللطيفة (Web Audio API بدون روابط خارجية)
+         * =================================================================
+         */
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playJump() {
+                if (!this.enabled) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(580, this.ctx.currentTime + 0.25);
+                
+                gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.25);
+            }
+
+            playSuccess() {
+                if (!this.enabled) return;
+                this.init();
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.09);
+                    
+                    gain.gain.setValueAtTime(0.25, this.ctx.currentTime + idx * 0.09);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.09 + 0.3);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + idx * 0.09);
+                    osc.stop(this.ctx.currentTime + idx * 0.09 + 0.3);
+                });
+            }
+
+            playTryAgain() {
+                if (!this.enabled) return;
+                this.init();
+                const notes = [330, 240, 170];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.12);
+                    
+                    gain.gain.setValueAtTime(0.22, this.ctx.currentTime + idx * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.12 + 0.25);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + idx * 0.12);
+                    osc.stop(this.ctx.currentTime + idx * 0.12 + 0.25);
+                });
+            }
+
+            playVictory() {
+                if (!this.enabled) return;
+                this.init();
+                const melody = [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50];
+                const times = [0, 0.12, 0.24, 0.36, 0.52, 0.66];
+                melody.forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + times[i]);
+                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime + times[i]);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + times[i] + 0.35);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + times[i]);
+                    osc.stop(this.ctx.currentTime + times[i] + 0.35);
+                });
+            }
+        }
+
+        const sounds = new SoundFX();
+
+        /**
+         * =================================================================
+         * 3. بناء عالم روبلكس ثلاثي الأبعاد (Three.js)
+         * =================================================================
+         */
+        let scene, camera, renderer;
+        let robloxCharacter, leftArm, rightArm, leftLeg, rightLeg, headGroup;
+        let startPlatform, finishPlatform;
+        let finishFriends = [];
+        let activeTileGroup = null;
+        let pastPlatforms = [];
+        let answerTiles = [];
+        let tileSprites = [];
+        let confettiParticles = [];
+        let clouds = [];
+
+        // متغيرات التحكم في الكاميرا
+        const camControl = {
+            yaw: 0.55,
+            pitch: 0.42,
+            distance: window.innerWidth < 640 ? 21.0 : 17.5,
+            minDistance: 8.5,
+            maxDistance: 42.0,
+            isDragging: false,
+            prevX: 0,
+            prevY: 0,
+            pinchStartDist: 0,
+            pinchStartCamDist: 17.5,
+            targetFocus: new THREE.Vector3(0, 1.4, 0),
+            currentFocus: new THREE.Vector3(0, 1.4, 0)
+        };
+
+        // مسافة التقدم الأفقية في كل مرحلة
+        const STEP_X = 4.6;
+
+        // حالة حركة الشخصية والقفز والسقوط
+        const charState = {
+            startPos: new THREE.Vector3(0, 0.72, 0),
+            startPosJump: new THREE.Vector3(0, 0.72, 0),
+            currentPos: new THREE.Vector3(0, 0.72, 0),
+            targetPos: new THREE.Vector3(0, 0.72, 0),
+            isJumping: false,
+            jumpProgress: 0,
+            jumpHeight: 2.3,
+            celebrating: false,
+            falling: false,
+            fallVelocity: 0,
+            fallingTileIndex: -1
+        };
+
+        // الإزاحة النسبية للبلاطات الثلاث أمام البطل في المسار الأفقي
+        const TILE_OFFSETS = [
+            new THREE.Vector3(STEP_X, 0, -2.4),
+            new THREE.Vector3(STEP_X, 0, 0),
+            new THREE.Vector3(STEP_X, 0, 2.4)
+        ];
+
+        const TILE_COLORS = [0xf43f5e, 0xfbbf24, 0x10b981];
+
+        function init3DWorld() {
+            const canvas = document.getElementById('game-canvas');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x60a5fa);
+            scene.fog = new THREE.FogExp2(0x60a5fa, 0.011);
+
+            camera = new THREE.PerspectiveCamera(44, window.innerWidth / window.innerHeight, 0.1, 200);
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.72);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
+            dirLight.position.set(10, 18, 12);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            scene.add(dirLight);
+
+            createEnvironment();
+            robloxCharacter = createRobloxBoyCharacter({
+                shirtColor: 0x10b981,
+                pantsColor: 0x1e3a8a,
+                capColor: 0xef4444
+            });
+            leftArm = robloxCharacter.userData.leftArm;
+            rightArm = robloxCharacter.userData.rightArm;
+            leftLeg = robloxCharacter.userData.leftLeg;
+            rightLeg = robloxCharacter.userData.rightLeg;
+            headGroup = robloxCharacter.userData.headGroup;
+
+            robloxCharacter.rotation.y = -Math.PI / 2;
+            robloxCharacter.position.copy(charState.startPos);
+            scene.add(robloxCharacter);
+
+            setupCameraOrbitControls(canvas);
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function setupCameraOrbitControls(canvas) {
+            let dragMoved = false;
+
+            const onDown = (x, y) => {
+                camControl.isDragging = true;
+                dragMoved = false;
+                camControl.prevX = x;
+                camControl.prevY = y;
+            };
+
+            const onMove = (x, y) => {
+                if (!camControl.isDragging) return;
+                const dx = x - camControl.prevX;
+                const dy = y - camControl.prevY;
+                if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragMoved = true;
+
+                camControl.yaw -= dx * 0.007;
+                camControl.pitch = Math.max(-0.15, Math.min(1.35, camControl.pitch + dy * 0.007));
+
+                camControl.prevX = x;
+                camControl.prevY = y;
+            };
+
+            const onUp = (event) => {
+                if (camControl.isDragging && !dragMoved && event) {
+                    handleCanvasClick(event);
+                }
+                camControl.isDragging = false;
+            };
+
+            canvas.addEventListener('mousedown', (e) => onDown(e.clientX, e.clientY));
+            window.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
+            window.addEventListener('mouseup', (e) => onUp(e));
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                camControl.distance = Math.max(
+                    camControl.minDistance,
+                    Math.min(camControl.maxDistance, camControl.distance + e.deltaY * 0.015)
+                );
+            }, { passive: false });
+
+            document.getElementById('zoom-in-btn').addEventListener('click', () => {
+                camControl.distance = Math.max(camControl.minDistance, camControl.distance - 3.5);
+            });
+            document.getElementById('zoom-out-btn').addEventListener('click', () => {
+                camControl.distance = Math.min(camControl.maxDistance, camControl.distance + 3.5);
+            });
+
+            canvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    onDown(e.touches[0].clientX, e.touches[0].clientY);
+                } else if (e.touches.length === 2) {
+                    camControl.isDragging = false;
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    camControl.pinchStartDist = Math.hypot(dx, dy);
+                    camControl.pinchStartCamDist = camControl.distance;
+                }
+            }, { passive: false });
+
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (e.touches.length === 1) {
+                    onMove(e.touches[0].clientX, e.touches[0].clientY);
+                } else if (e.touches.length === 2 && camControl.pinchStartDist > 0) {
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    const currentDist = Math.hypot(dx, dy);
+                    const scale = camControl.pinchStartDist / currentDist;
+                    camControl.distance = Math.max(
+                        camControl.minDistance,
+                        Math.min(camControl.maxDistance, camControl.pinchStartCamDist * scale)
+                    );
+                }
+            }, { passive: false });
+
+            canvas.addEventListener('touchend', (e) => {
+                if (e.touches.length === 0) {
+                    onUp(e.changedTouches[0]);
+                    camControl.pinchStartDist = 0;
+                }
+            });
+        }
+
+        function createEnvironment() {
+            const waterGeo = new THREE.PlaneGeometry(300, 300);
+            const waterMat = new THREE.MeshLambertMaterial({ color: 0x38bdf8 });
+            const water = new THREE.Mesh(waterGeo, waterMat);
+            water.rotation.x = -Math.PI / 2;
+            water.position.y = -4;
+            scene.add(water);
+
+            createStartPlatform();
+            createFinishPlatform();
+
+            const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            for (let i = 0; i < 16; i++) {
+                const cloudGroup = new THREE.Group();
+                const mainBlock = new THREE.Mesh(new THREE.BoxGeometry(3.8, 1, 2.2), cloudMat);
+                const topBlock = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.8, 1.6), cloudMat);
+                topBlock.position.set(0.3, 0.7, 0);
+                cloudGroup.add(mainBlock, topBlock);
+                cloudGroup.position.set(
+                    -20 + i * 6 + Math.random() * 3,
+                    9 + Math.random() * 4,
+                    -14 + Math.random() * 28
+                );
+                scene.add(cloudGroup);
+                clouds.push({ mesh: cloudGroup, speed: 0.008 + Math.random() * 0.008 });
+            }
+        }
+
+        function createStartPlatform() {
+            if (startPlatform) scene.remove(startPlatform);
+            startPlatform = new THREE.Group();
+
+            const baseIsland = new THREE.Mesh(
+                new THREE.BoxGeometry(5.2, 1.1, 6.4),
+                new THREE.MeshLambertMaterial({ map: createStudTexture(0x16a34a) })
+            );
+            baseIsland.position.set(-0.5, -0.1, 0);
+            baseIsland.receiveShadow = true;
+            startPlatform.add(baseIsland);
+
+            const topSurface = new THREE.Mesh(
+                new THREE.BoxGeometry(4.4, 0.35, 5.4),
+                new THREE.MeshLambertMaterial({ map: createStudTexture(0x22c55e) })
+            );
+            topSurface.position.set(-0.5, 0.55, 0);
+            topSurface.receiveShadow = true;
+            startPlatform.add(topSurface);
+
+            const postMat = new THREE.MeshLambertMaterial({ map: createStudTexture(0x0284c7) });
+            const leftPost = new THREE.Mesh(new THREE.BoxGeometry(0.45, 2.8, 0.45), postMat);
+            leftPost.position.set(-2.2, 1.9, -2.0);
+            const rightPost = new THREE.Mesh(new THREE.BoxGeometry(0.45, 2.8, 0.45), postMat);
+            rightPost.position.set(-2.2, 1.9, 2.0);
+            startPlatform.add(leftPost, rightPost);
+
+            const startBanner = createTextBillboard("🚀 جزيرة البداية 🌟", 0x0284c7);
+            startBanner.position.set(-2.2, 3.6, 0);
+            startPlatform.add(startBanner);
+
+            scene.add(startPlatform);
+        }
+
+        function createFinishPlatform() {
+            if (finishPlatform) scene.remove(finishPlatform);
+            finishPlatform = new THREE.Group();
+            finishFriends = [];
+
+            const finishX = QUESTIONS.length * STEP_X + 5.2;
+
+            const baseIsland = new THREE.Mesh(
+                new THREE.BoxGeometry(6.8, 1.2, 7.6),
+                new THREE.MeshLambertMaterial({ map: createStudTexture(0x16a34a) })
+            );
+            baseIsland.position.set(finishX, 0.1, 0);
+            baseIsland.receiveShadow = true;
+            finishPlatform.add(baseIsland);
+
+            const topDeck = new THREE.Mesh(
+                new THREE.BoxGeometry(5.6, 0.4, 6.4),
+                new THREE.MeshLambertMaterial({ map: createStudTexture(0xfbbf24) })
+            );
+            topDeck.position.set(finishX, 0.75, 0);
+            topDeck.receiveShadow = true;
+            finishPlatform.add(topDeck);
+
+            const pillarMat = new THREE.MeshLambertMaterial({ map: createStudTexture(0xf59e0b) });
+            const p1 = new THREE.Mesh(new THREE.BoxGeometry(0.6, 4.0, 0.6), pillarMat);
+            p1.position.set(finishX + 2.2, 2.7, -2.4);
+            const p2 = new THREE.Mesh(new THREE.BoxGeometry(0.6, 4.0, 0.6), pillarMat);
+            p2.position.set(finishX + 2.2, 2.7, 2.4);
+            const topArch = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.8, 5.6), pillarMat);
+            topArch.position.set(finishX + 2.2, 4.7, 0);
+            finishPlatform.add(p1, p2, topArch);
+
+            const finishBanner = createTextBillboard("🏝️ جزيرة الأبطال 🏆", 0xf59e0b);
+            finishBanner.position.set(finishX + 2.2, 5.6, 0);
+            finishPlatform.add(finishBanner);
+
+            const friendsConfig = [
+                { z: -2.1, xOffset: 0.5, shirt: 0x3b82f6, cap: 0xfbbf24 },
+                { z: 0.0,  xOffset: 1.1, shirt: 0xf97316, cap: 0x10b981 },
+                { z: 2.1,  xOffset: 0.5, shirt: 0x8b5cf6, cap: 0xef4444 }
+            ];
+
+            friendsConfig.forEach((cfg, idx) => {
+                const friend = createRobloxBoyCharacter({
+                    shirtColor: cfg.shirt,
+                    pantsColor: 0x1e3a8a,
+                    capColor: cfg.cap
+                });
+                friend.position.set(finishX + cfg.xOffset, 0.95, cfg.z);
+                friend.rotation.y = Math.PI / 2;
+                finishPlatform.add(friend);
+                finishFriends.push({ mesh: friend, baseY: 0.95, phase: idx * 0.7 });
+            });
+
+            scene.add(finishPlatform);
+        }
+
+        function createRobloxBoyCharacter({ shirtColor = 0x10b981, pantsColor = 0x1e3a8a, capColor = 0xef4444 } = {}) {
+            const charRoot = new THREE.Group();
+
+            const skinMat = new THREE.MeshLambertMaterial({ color: 0xfcd34d });
+            const shirtMat = new THREE.MeshLambertMaterial({ map: createStudTexture(shirtColor) });
+            const pantsMat = new THREE.MeshLambertMaterial({ color: pantsColor });
+            const capMat = new THREE.MeshLambertMaterial({ color: capColor });
+
+            const legGeo = new THREE.BoxGeometry(0.45, 0.9, 0.45);
+            const lLeg = new THREE.Mesh(legGeo, pantsMat);
+            lLeg.position.set(-0.26, 0.45, 0);
+            lLeg.castShadow = true;
+
+            const rLeg = new THREE.Mesh(legGeo, pantsMat);
+            rLeg.position.set(0.26, 0.45, 0);
+            rLeg.castShadow = true;
+
+            const torsoGeo = new THREE.BoxGeometry(1.05, 1.1, 0.55);
+            const torso = new THREE.Mesh(torsoGeo, shirtMat);
+            torso.position.set(0, 1.45, 0);
+            torso.castShadow = true;
+
+            const armGeo = new THREE.BoxGeometry(0.4, 1.0, 0.4);
+            const lArm = new THREE.Mesh(armGeo, skinMat);
+            lArm.position.set(-0.78, 1.45, 0);
+            lArm.castShadow = true;
+
+            const rArm = new THREE.Mesh(armGeo, skinMat);
+            rArm.position.set(0.78, 1.45, 0);
+            rArm.castShadow = true;
+
+            const hGroup = new THREE.Group();
+            hGroup.position.set(0, 2.45, 0);
+
+            const headGeo = new THREE.BoxGeometry(0.85, 0.85, 0.85);
+            const headMesh = new THREE.Mesh(headGeo, skinMat);
+            headMesh.castShadow = true;
+            hGroup.add(headMesh);
+
+            const faceCanvas = document.createElement('canvas');
+            faceCanvas.width = 128;
+            faceCanvas.height = 128;
+            const fCtx = faceCanvas.getContext('2d');
+            fCtx.fillStyle = '#fcd34d';
+            fCtx.fillRect(0, 0, 128, 128);
+            fCtx.fillStyle = '#1e293b';
+            fCtx.beginPath();
+            fCtx.arc(44, 52, 8, 0, Math.PI * 2);
+            fCtx.arc(84, 52, 8, 0, Math.PI * 2);
+            fCtx.fill();
+            fCtx.fillStyle = '#ffffff';
+            fCtx.beginPath();
+            fCtx.arc(46, 49, 3, 0, Math.PI * 2);
+            fCtx.arc(86, 49, 3, 0, Math.PI * 2);
+            fCtx.fill();
+            fCtx.strokeStyle = '#1e293b';
+            fCtx.lineWidth = 6;
+            fCtx.lineCap = 'round';
+            fCtx.beginPath();
+            fCtx.arc(64, 72, 22, 0.15 * Math.PI, 0.85 * Math.PI);
+            fCtx.stroke();
+
+            const faceTex = new THREE.CanvasTexture(faceCanvas);
+            const facePlane = new THREE.Mesh(
+                new THREE.PlaneGeometry(0.82, 0.82),
+                new THREE.MeshBasicMaterial({ map: faceTex })
+            );
+            facePlane.position.z = -0.43;
+            facePlane.rotation.y = Math.PI;
+            hGroup.add(facePlane);
+
+            const capTop = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.3, 0.9), capMat);
+            capTop.position.set(0, 0.52, 0);
+            const capVisor = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.12, 0.45), capMat);
+            capVisor.position.set(0, 0.4, -0.55);
+            hGroup.add(capTop, capVisor);
+
+            charRoot.add(lLeg, rLeg, torso, lArm, rArm, hGroup);
+            charRoot.userData = {
+                leftArm: lArm,
+                rightArm: rArm,
+                leftLeg: lLeg,
+                rightLeg: rLeg,
+                headGroup: hGroup
+            };
+            return charRoot;
+        }
+
+        function createStudTexture(hexColor) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+
+            const c = new THREE.Color(hexColor);
+            ctx.fillStyle = '#' + c.getHexString();
+            ctx.fillRect(0, 0, 128, 128);
+
+            ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(0, 0, 128, 128);
+
+            const positions = [32, 96];
+            positions.forEach(x => {
+                positions.forEach(y => {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 18, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+                    ctx.fill();
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+                    ctx.stroke();
+                });
+            });
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            return texture;
+        }
+
+        function spawnStageTiles(basePos, options, tileColors = TILE_COLORS) {
+            if (activeTileGroup) {
+                scene.remove(activeTileGroup);
+            }
+            activeTileGroup = new THREE.Group();
+            answerTiles = [];
+            tileSprites = [];
+
+            TILE_OFFSETS.forEach((offset, idx) => {
+                const pos = new THREE.Vector3(
+                    basePos.x + offset.x,
+                    0.1,
+                    offset.z
+                );
+
+                const tileColor = tileColors[idx];
+                const tileGeo = new THREE.BoxGeometry(2.1, 0.75, 2.0);
+                const tileMat = new THREE.MeshLambertMaterial({ map: createStudTexture(tileColor) });
+                const tile = new THREE.Mesh(tileGeo, tileMat);
+                tile.position.copy(pos);
+                tile.receiveShadow = true;
+                tile.userData = { index: idx, worldPos: pos.clone(), isFalling: false, fallVel: 0, colorHex: tileColor };
+                activeTileGroup.add(tile);
+                answerTiles.push(tile);
+
+                const sprite = createTextBillboard(options[idx], tileColor);
+                sprite.position.set(pos.x, pos.y + 1.35, pos.z);
+                sprite.userData.index = idx;
+                activeTileGroup.add(sprite);
+                tileSprites.push(sprite);
+            });
+
+            scene.add(activeTileGroup);
+        }
+
+        function solidifyCorrectTile(tileIndex) {
+            const chosenTile = answerTiles[tileIndex];
+            if (!chosenTile) return;
+
+            const savedGeo = new THREE.BoxGeometry(2.1, 0.75, 2.0);
+            const savedMat = new THREE.MeshLambertMaterial({ map: createStudTexture(chosenTile.userData.colorHex) });
+            const savedMesh = new THREE.Mesh(savedGeo, savedMat);
+            savedMesh.position.copy(chosenTile.userData.worldPos);
+            savedMesh.receiveShadow = true;
+            scene.add(savedMesh);
+            pastPlatforms.push(savedMesh);
+        }
+
+        function createTextBillboard(text, borderColorHex) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 192;
+            const ctx = canvas.getContext('2d');
+            drawBillboardContent(ctx, text, borderColorHex);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(2.9, 1.1, 1);
+            sprite.userData = { canvas, ctx, texture, borderColorHex };
+            return sprite;
+        }
+
+        function drawBillboardContent(ctx, text, borderColorHex) {
+            ctx.clearRect(0, 0, 512, 192);
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
+            roundRect(ctx, 16, 16, 480, 160, 36);
+            ctx.fill();
+
+            const c = new THREE.Color(borderColorHex);
+            ctx.strokeStyle = '#' + c.getHexString();
+            ctx.lineWidth = 14;
+            roundRect(ctx, 16, 16, 480, 160, 36);
+            ctx.stroke();
+
+            ctx.direction = 'rtl';
+            ctx.fillStyle = '#1e293b';
+            ctx.font = '900 42px Tajawal, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 256, 98);
+        }
+
+        function roundRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+
+        function spawnConfetti(originPos) {
+            const colors = [0xf43f5e, 0xfbbf24, 0x10b981, 0x3b82f6, 0xa855f7];
+            const geo = new THREE.BoxGeometry(0.22, 0.22, 0.08);
+            for (let i = 0; i < 45; i++) {
+                const mat = new THREE.MeshBasicMaterial({ color: colors[i % colors.length] });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(
+                    originPos.x + (Math.random() - 0.5) * 1.5,
+                    originPos.y + 1.8,
+                    originPos.z + (Math.random() - 0.5) * 1.5
+                );
+                scene.add(mesh);
+                confettiParticles.push({
+                    mesh: mesh,
+                    vx: (Math.random() - 0.5) * 0.18,
+                    vy: 0.14 + Math.random() * 0.18,
+                    vz: (Math.random() - 0.5) * 0.18,
+                    rx: Math.random() * 0.2,
+                    ry: Math.random() * 0.2
+                });
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        /**
+         * =================================================================
+         * 4. منطق اللعبة والتفاعل مع الطالب
+         * =================================================================
+         */
+        const gameState = {
+            studentName: "",
+            currentLevelIndex: 0,
+            stars: 0,
+            score: 0,
+            isPlaying: false,
+            isLocked: false,
+            firstAttemptSuccess: true,
+            lastCorrectColor: null,
+            lastCorrectIndex: -1,
+            currentShuffledOptions: [],
+            currentCorrectIndex: 0,
+            currentTileColors: [...TILE_COLORS],
+            friendsCelebratingJump: false,
+            isJumpingToIsland: false,
+            startTimeMs: 0,
+            elapsedSeconds: 0,
+            timerInterval: null
+        };
+
+        function formatTime(totalSeconds) {
+            const mins = Math.floor(totalSeconds / 60);
+            const secs = totalSeconds % 60;
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function startGameTimer() {
+            stopGameTimer();
+            gameState.startTimeMs = Date.now();
+            gameState.elapsedSeconds = 0;
+            document.getElementById('hud-timer').textContent = '00:00';
+            gameState.timerInterval = setInterval(() => {
+                if (!gameState.isPlaying) return;
+                gameState.elapsedSeconds = Math.floor((Date.now() - gameState.startTimeMs) / 1000);
+                document.getElementById('hud-timer').textContent = formatTime(gameState.elapsedSeconds);
+            }, 250);
+        }
+
+        function stopGameTimer() {
+            if (gameState.timerInterval) {
+                clearInterval(gameState.timerInterval);
+                gameState.timerInterval = null;
+            }
+        }
+
+        const startScreen = document.getElementById('start-screen');
+        const gameHud = document.getElementById('game-hud');
+        const endScreen = document.getElementById('end-screen');
+        const studentNameInput = document.getElementById('student-name');
+        const nameError = document.getElementById('name-error');
+        const questionCard = document.getElementById('question-card');
+        const feedbackBox = document.getElementById('feedback-box');
+        const feedbackText = document.getElementById('feedback-text');
+        const retryBtn = document.getElementById('retry-btn');
+        const nextBtn = document.getElementById('next-btn');
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            const nameVal = studentNameInput.value.trim();
+            if (!nameVal) {
+                nameError.classList.remove('hidden');
+                studentNameInput.focus();
+                return;
+            }
+            nameError.classList.add('hidden');
+            sounds.init();
+            sounds.playJump();
+
+            gameState.studentName = nameVal;
+            gameState.currentLevelIndex = 0;
+            gameState.stars = 0;
+            gameState.score = 0;
+            gameState.isPlaying = true;
+            gameState.lastCorrectColor = null;
+            gameState.lastCorrectIndex = -1;
+            gameState.friendsCelebratingJump = false;
+            gameState.isJumpingToIsland = false;
+
+            pastPlatforms.forEach(p => scene.remove(p));
+            pastPlatforms = [];
+            charState.startPos.set(0, 0.72, 0);
+            charState.currentPos.copy(charState.startPos);
+            charState.targetPos.copy(charState.startPos);
+            robloxCharacter.position.copy(charState.startPos);
+            camControl.targetFocus.set(1.5, 1.2, 0);
+            camControl.currentFocus.copy(camControl.targetFocus);
+
+            document.getElementById('hud-name').textContent = `الطالب: ${gameState.studentName}`;
+            questionCard.classList.remove('hidden');
+            startScreen.classList.add('hidden');
+            gameHud.classList.remove('hidden');
+
+            startGameTimer();
+            loadLevel(0);
+        });
+
+        function prepareStageOptionsAndColors(q) {
+            const correctText = q.options[q.correct];
+            const wrongTexts = q.options.filter((_, idx) => idx !== q.correct);
+            if (Math.random() < 0.5) wrongTexts.reverse();
+
+            const candidateIndices = [0, 1, 2].filter(i => i !== gameState.lastCorrectIndex);
+            const newCorrectIndex = candidateIndices[Math.floor(Math.random() * candidateIndices.length)];
+
+            const shuffledOptions = [];
+            let wrongPtr = 0;
+            for (let i = 0; i < 3; i++) {
+                if (i === newCorrectIndex) {
+                    shuffledOptions.push(correctText);
+                } else {
+                    shuffledOptions.push(wrongTexts[wrongPtr++]);
+                }
+            }
+
+            const candidateColors = TILE_COLORS.filter(c => c !== gameState.lastCorrectColor);
+            const newCorrectColor = candidateColors[Math.floor(Math.random() * candidateColors.length)];
+            const remainingColors = TILE_COLORS.filter(c => c !== newCorrectColor);
+            if (Math.random() < 0.5) remainingColors.reverse();
+
+            const stageColors = [];
+            let colorPtr = 0;
+            for (let i = 0; i < 3; i++) {
+                if (i === newCorrectIndex) {
+                    stageColors.push(newCorrectColor);
+                } else {
+                    stageColors.push(remainingColors[colorPtr++]);
+                }
+            }
+
+            gameState.currentShuffledOptions = shuffledOptions;
+            gameState.currentCorrectIndex = newCorrectIndex;
+            gameState.currentTileColors = stageColors;
+            gameState.lastCorrectIndex = newCorrectIndex;
+            gameState.lastCorrectColor = newCorrectColor;
+        }
+
+        function loadLevel(index) {
+            const q = QUESTIONS[index];
+            gameState.isLocked = false;
+            gameState.firstAttemptSuccess = true;
+
+            prepareStageOptionsAndColors(q);
+
+            questionCard.classList.remove('hidden');
+            document.getElementById('hud-level').textContent = q.level;
+            document.getElementById('hud-remaining').textContent = QUESTIONS.length - index;
+            document.getElementById('hud-stars').textContent = gameState.stars;
+            document.getElementById('progress-bar').style.width = `${(index / QUESTIONS.length) * 100}%`;
+            document.getElementById('question-category').textContent = q.category;
+            document.getElementById('question-text').textContent = q.question;
+
+            spawnStageTiles(charState.startPos, gameState.currentShuffledOptions, gameState.currentTileColors);
+
+            feedbackBox.classList.add('hidden');
+            retryBtn.classList.add('hidden');
+            nextBtn.classList.add('hidden');
+
+            camControl.targetFocus.set(charState.startPos.x + 1.8, 1.5, 0);
+            resetCharacterOnCurrentPlatform();
+        }
+
+        function resetCharacterOnCurrentPlatform() {
+            charState.currentPos.copy(charState.startPos);
+            charState.targetPos.copy(charState.startPos);
+            charState.isJumping = false;
+            charState.jumpProgress = 0;
+            charState.celebrating = false;
+            charState.falling = false;
+            charState.fallVelocity = 0;
+            charState.fallingTileIndex = -1;
+            robloxCharacter.position.copy(charState.startPos);
+            robloxCharacter.rotation.set(0, -Math.PI / 2, 0);
+        }
+
+        function selectAnswer(selectedIndex) {
+            if (!gameState.isPlaying || gameState.isLocked || charState.isJumping) return;
+
+            gameState.isLocked = true;
+            sounds.playJump();
+
+            const chosenTile = answerTiles[selectedIndex];
+            const tileWorldPos = chosenTile.userData.worldPos;
+            charState.startPosJump = charState.startPos.clone();
+            charState.targetPos.set(tileWorldPos.x, 0.5, tileWorldPos.z);
+            charState.isJumping = true;
+            charState.jumpProgress = 0;
+
+            const dx = tileWorldPos.x - charState.startPos.x;
+            const dz = tileWorldPos.z - charState.startPos.z;
+            robloxCharacter.rotation.y = Math.atan2(-dx, -dz);
+
+            setTimeout(() => {
+                evaluateAnswer(selectedIndex);
+            }, 600);
+        }
+
+        function evaluateAnswer(selectedIndex) {
+            const isCorrect = (selectedIndex === gameState.currentCorrectIndex);
+
+            feedbackBox.classList.remove('hidden');
+
+            if (isCorrect) {
+                sounds.playSuccess();
+                charState.celebrating = true;
+
+                solidifyCorrectTile(selectedIndex);
+                const tileWorldPos = answerTiles[selectedIndex].userData.worldPos;
+                charState.startPos.set(tileWorldPos.x, 0.5, tileWorldPos.z);
+                charState.currentPos.copy(charState.startPos);
+
+                spawnConfetti(charState.startPos);
+
+                if (gameState.firstAttemptSuccess) {
+                    gameState.stars += 1;
+                    gameState.score += 10;
+                } else {
+                    gameState.stars += 1;
+                    gameState.score += 5;
+                }
+                document.getElementById('hud-stars').textContent = gameState.stars;
+                document.getElementById('hud-remaining').textContent = QUESTIONS.length - (gameState.currentLevelIndex + 1);
+                document.getElementById('progress-bar').style.width = `${((gameState.currentLevelIndex + 1) / QUESTIONS.length) * 100}%`;
+
+                feedbackText.textContent = "🎉 أحسنت يا بطل لغتي! 🎉";
+                feedbackText.className = "text-xl sm:text-2xl font-black text-emerald-600";
+
+                retryBtn.classList.add('hidden');
+                nextBtn.classList.remove('hidden');
+
+                if (gameState.currentLevelIndex === QUESTIONS.length - 1) {
+                    questionCard.classList.add('hidden');
+                    nextBtn.innerHTML = "القفز إلى جزيرة الأبطال 🏝️🏆";
+                } else {
+                    nextBtn.innerHTML = "المرحلة التالية ⬅️";
+                }
+
+            } else {
+                sounds.playTryAgain();
+                gameState.firstAttemptSuccess = false;
+                charState.falling = true;
+                charState.fallVelocity = 0.02;
+                charState.fallingTileIndex = selectedIndex;
+
+                if (answerTiles[selectedIndex]) {
+                    answerTiles[selectedIndex].userData.isFalling = true;
+                    answerTiles[selectedIndex].userData.fallVel = 0.02;
+                }
+
+                feedbackText.textContent = "💪 حاول مرة أخرى، أنت تستطيع! 💪";
+                feedbackText.className = "text-xl sm:text-2xl font-black text-orange-600";
+
+                nextBtn.classList.add('hidden');
+                retryBtn.classList.remove('hidden');
+
+                setTimeout(() => {
+                    if (charState.falling) {
+                        restoreAfterFall();
+                    }
+                }, 1350);
+            }
+        }
+
+        function restoreAfterFall() {
+            spawnStageTiles(charState.startPos, gameState.currentShuffledOptions, gameState.currentTileColors);
+            resetCharacterOnCurrentPlatform();
+            camControl.targetFocus.set(charState.startPos.x + 1.8, 1.5, 0);
+            feedbackBox.classList.add('hidden');
+            gameState.isLocked = false;
+        }
+
+        retryBtn.addEventListener('click', () => {
+            restoreAfterFall();
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (gameState.currentLevelIndex < QUESTIONS.length - 1) {
+                gameState.currentLevelIndex++;
+                loadLevel(gameState.currentLevelIndex);
+            } else {
+                jumpToFinishIsland();
+            }
+        });
+
+        function jumpToFinishIsland() {
+            nextBtn.disabled = true;
+            feedbackBox.classList.add('hidden');
+            if (activeTileGroup) scene.remove(activeTileGroup);
+
+            sounds.playJump();
+            const finishX = QUESTIONS.length * STEP_X + 5.2;
+            charState.startPosJump = charState.startPos.clone();
+            charState.targetPos.set(finishX - 0.9, 0.95, 0);
+            charState.isJumping = true;
+            charState.jumpProgress = 0;
+            charState.jumpHeight = 3.2;
+            gameState.isJumpingToIsland = true;
+
+            robloxCharacter.rotation.y = -Math.PI / 2;
+            camControl.targetFocus.set(finishX, 1.8, 0);
+
+            setTimeout(() => {
+                charState.startPos.copy(charState.targetPos);
+                charState.currentPos.copy(charState.targetPos);
+                charState.celebrating = true;
+                charState.jumpHeight = 2.3;
+                gameState.isJumpingToIsland = false;
+                gameState.friendsCelebratingJump = true;
+                nextBtn.disabled = false;
+
+                spawnConfetti(charState.startPos);
+                spawnConfetti(new THREE.Vector3(finishX + 1.0, 1.5, -1.8));
+                spawnConfetti(new THREE.Vector3(finishX + 1.0, 1.5, 1.8));
+
+                setTimeout(() => {
+                    showEndScreen();
+                }, 1600);
+            }, 700);
+        }
+
+        function showEndScreen() {
+            gameState.isPlaying = false;
+            stopGameTimer();
+            sounds.playVictory();
+            spawnConfetti(charState.startPos);
+
+            const finalTimeFormatted = formatTime(gameState.elapsedSeconds);
+            document.getElementById('final-student-name').textContent = `البطل: ${gameState.studentName}`;
+            document.getElementById('final-stars').textContent = gameState.stars;
+            document.getElementById('final-score').textContent = gameState.score;
+            document.getElementById('final-time').textContent = finalTimeFormatted;
+
+            saveScoreToLeaderboard({
+                name: gameState.studentName,
+                stars: gameState.stars,
+                score: gameState.score,
+                timeFormatted: finalTimeFormatted,
+                seconds: gameState.elapsedSeconds,
+                date: new Date().toLocaleDateString('ar-SA')
+            });
+
+            gameHud.classList.add('hidden');
+            endScreen.classList.remove('hidden');
+        }
+
+        function saveScoreToLeaderboard(newRecord) {
+            try {
+                let records = JSON.parse(localStorage.getItem('abtal_lughati_leaderboard') || '[]');
+                records.push(newRecord);
+                records.sort((a, b) => b.score - a.score || a.seconds - b.seconds);
+                if (records.length > 20) records = records.slice(0, 20);
+                localStorage.setItem('abtal_lughati_leaderboard', JSON.stringify(records));
+            } catch (e) {
+                console.error("LocalStorage error:", e);
+            }
+        }
+
+        function renderLeaderboard() {
+            const listContainer = document.getElementById('leaderboard-list');
+            listContainer.innerHTML = '';
+            
+            let records = [];
+            try {
+                records = JSON.parse(localStorage.getItem('abtal_lughati_leaderboard') || '[]');
+            } catch (e) {
+                records = [];
+            }
+
+            if (records.length === 0) {
+                listContainer.innerHTML = '<p class="text-slate-500 font-bold py-6 text-center">لا توجد نتائج مسجلة بعد. كن أول الأبطال!</p>';
+                return;
+            }
+
+            records.forEach((rec, idx) => {
+                const item = document.createElement('div');
+                item.className = `flex items-center justify-between p-3 rounded-2xl border-2 ${idx === 0 ? 'bg-amber-100 border-amber-300' : idx === 1 ? 'bg-slate-100 border-slate-300' : idx === 2 ? 'bg-orange-50 border-orange-200' : 'bg-white border-sky-100'} shadow-sm`;
+                
+                const rankMedal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
+                
+                item.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl font-black w-8 text-center">${rankMedal}</span>
+                        <div>
+                            <p class="font-black text-slate-800 text-base">${rec.name}</p>
+                            <p class="text-xs text-slate-500 font-bold">${rec.date}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm font-extrabold">
+                        <span class="text-amber-600 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200">⭐ ${rec.stars}</span>
+                        <span class="text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-xl border border-indigo-200">💎 ${rec.score}</span>
+                        <span class="text-sky-600 bg-sky-50 px-2.5 py-1 rounded-xl border border-sky-200 tabular-nums">⏱️ ${rec.timeFormatted}</span>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+
+        document.getElementById('show-leaderboard-btn').addEventListener('click', () => {
+            renderLeaderboard();
+            document.getElementById('leaderboard-modal').classList.remove('hidden');
+        });
+
+        document.getElementById('close-leaderboard-btn').addEventListener('click', () => {
+            document.getElementById('leaderboard-modal').classList.add('hidden');
+        });
+
+        document.getElementById('restart-all-btn').addEventListener('click', () => {
+            stopGameTimer();
+            endScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+            questionCard.classList.remove('hidden');
+            pastPlatforms.forEach(p => scene.remove(p));
+            pastPlatforms = [];
+            if (activeTileGroup) scene.remove(activeTileGroup);
+            gameState.friendsCelebratingJump = false;
+            charState.startPos.set(0, 0.72, 0);
+            resetCharacterOnCurrentPlatform();
+            camControl.targetFocus.set(0, 1.2, 0);
+        });
+
+        const soundToggleBtn = document.getElementById('sound-toggle');
+        soundToggleBtn.addEventListener('click', () => {
+            sounds.enabled = !sounds.enabled;
+            soundToggleBtn.textContent = sounds.enabled ? '🔊' : '🔇';
+        });
+
+        const certificateModal = document.getElementById('certificate-modal');
+        const certCanvas = document.getElementById('cert-canvas');
+
+        function drawRobloxBadgeOnCertificate(ctx, cx, cy, scale = 1.0) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.scale(scale, scale);
+
+            ctx.beginPath();
+            ctx.arc(0, 0, 74, 0, Math.PI * 2);
+            ctx.fillStyle = '#e0f2fe';
+            ctx.fill();
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#38bdf8';
+            ctx.stroke();
+
+            ctx.fillStyle = '#1e3a8a';
+            roundRect(ctx, -20, 26, 17, 28, 4);
+            ctx.fill();
+            roundRect(ctx, 3, 26, 17, 28, 4);
+            ctx.fill();
+
+            ctx.fillStyle = '#fcd34d';
+            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 2;
+            roundRect(ctx, -37, -10, 13, 32, 5);
+            ctx.fill();
+            ctx.stroke();
+            roundRect(ctx, 24, -10, 13, 32, 5);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#10b981';
+            ctx.strokeStyle = '#047857';
+            ctx.lineWidth = 2.5;
+            roundRect(ctx, -22, -12, 44, 38, 6);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#fcd34d';
+            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 2.5;
+            roundRect(ctx, -19, -46, 38, 33, 7);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ef4444';
+            roundRect(ctx, -21, -56, 42, 12, 4);
+            ctx.fill();
+            ctx.fillStyle = '#dc2626';
+            roundRect(ctx, -26, -48, 48, 6, 3);
+            ctx.fill();
+
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.arc(-7, -33, 3.2, 0, Math.PI * 2);
+            ctx.arc(7, -33, 3.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.arc(0, -24, 9, 0.15 * Math.PI, 0.85 * Math.PI);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function generateCertificateCanvas() {
+            const ctx = certCanvas.getContext('2d');
+            const w = certCanvas.width;
+            const h = certCanvas.height;
+
+            const grad = ctx.createLinearGradient(0, 0, w, h);
+            grad.addColorStop(0, '#fffbeb');
+            grad.addColorStop(0.5, '#fef3c7');
+            grad.addColorStop(1, '#e0f2fe');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 18;
+            ctx.strokeRect(20, 20, w - 40, h - 40);
+
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 6;
+            ctx.strokeRect(42, 42, w - 84, h - 84);
+
+            drawRobloxBadgeOnCertificate(ctx, 145, 295, 1.15);
+
+            ctx.direction = 'rtl';
+            ctx.textAlign = 'center';
+
+            ctx.fillStyle = '#0369a1';
+            ctx.font = '900 44px Tajawal, sans-serif';
+            ctx.fillText('🏆 شهادة إنجاز وتفوق 🏆', w / 2, 115);
+
+            ctx.fillStyle = '#059669';
+            ctx.font = '800 30px Tajawal, sans-serif';
+            ctx.fillText('مسابقة أبطال لغتي - الصف الثالث الابتدائي', w / 2, 170);
+
+            ctx.fillStyle = '#334155';
+            ctx.font = '700 28px Tajawal, sans-serif';
+            ctx.fillText('تُمنح هذه الشهادة للطالب البطل:', w / 2 + 40, 235);
+
+            ctx.fillStyle = '#b45309';
+            ctx.font = '900 46px Tajawal, sans-serif';
+            ctx.fillText(gameState.studentName || 'بطل لغتي', w / 2 + 40, 300);
+
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(w / 2 - 160, 320);
+            ctx.lineTo(w / 2 + 240, 320);
+            ctx.stroke();
+
+            ctx.fillStyle = '#1e293b';
+            ctx.font = '700 24px Tajawal, sans-serif';
+            ctx.fillText('لاجتيازه جميع مراحل أسلوب التعجب والنكرة والمعرفة بنجاح', w / 2 + 35, 368);
+
+            ctx.fillStyle = '#4f46e5';
+            ctx.font = '900 25px Tajawal, sans-serif';
+            ctx.fillText(
+                `النجوم: ${gameState.stars}/10 ⭐  |  النقاط: ${gameState.score} 💎  |  الوقت: ${formatTime(gameState.elapsedSeconds)} ⏱️`,
+                w / 2 + 20,
+                418
+            );
+
+            ctx.fillStyle = '#065f46';
+            ctx.font = '800 24px Tajawal, sans-serif';
+            ctx.fillText('«أنا جندي الوطن بعلمي وأخلاقي وعملي واجتهادي»', w / 2, 485);
+
+            ctx.fillStyle = '#475569';
+            ctx.font = '800 24px Tajawal, sans-serif';
+            ctx.fillText('إشراف وتصميم المعلمة: بدرية حكمي 🌷', w / 2, 550);
+        }
+
+        document.getElementById('show-cert-btn').addEventListener('click', () => {
+            generateCertificateCanvas();
+            certificateModal.classList.remove('hidden');
+        });
+
+        document.getElementById('close-cert-btn').addEventListener('click', () => {
+            certificateModal.classList.add('hidden');
+        });
+
+        document.getElementById('download-cert-btn').addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = `شهادة_أبطال_لغتي_${gameState.studentName || 'البطل'}.png`;
+            link.href = certCanvas.toDataURL('image/png');
+            link.click();
+        });
+
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+
+        function handleCanvasClick(event) {
+            if (!gameState.isPlaying || gameState.isLocked || charState.isJumping) return;
+            pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+            pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(pointer, camera);
+            const clickableObjects = [...answerTiles, ...tileSprites];
+            const intersects = raycaster.intersectObjects(clickableObjects);
+            if (intersects.length > 0) {
+                const idx = intersects[0].object.userData.index;
+                if (typeof idx === 'number') {
+                    selectAnswer(idx);
+                }
+            }
+        }
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            const elapsed = clock.getElapsedTime();
+
+            clouds.forEach(c => {
+                c.mesh.position.x += c.speed;
+                if (c.mesh.position.x > 65) c.mesh.position.x = -25;
+            });
+
+            finishFriends.forEach(f => {
+                const speed = gameState.friendsCelebratingJump ? 8.5 : 3.5;
+                const jumpAmp = gameState.friendsCelebratingJump ? 0.75 : 0.22;
+                const wave = Math.sin(elapsed * speed + f.phase);
+                f.mesh.position.y = f.baseY + Math.abs(Math.sin(elapsed * speed + f.phase)) * jumpAmp;
+                if (f.mesh.userData.leftArm) {
+                    f.mesh.userData.leftArm.rotation.x = gameState.friendsCelebratingJump ? Math.PI : (Math.PI * 0.85 + wave * 0.25);
+                    f.mesh.userData.rightArm.rotation.x = gameState.friendsCelebratingJump ? Math.PI : (Math.PI * 0.85 - wave * 0.25);
+                }
+            });
+
+            answerTiles.forEach((tile, idx) => {
+                if (tile.userData.isFalling) {
+                    tile.userData.fallVel += 0.015;
+                    tile.position.y -= tile.userData.fallVel;
+                    tile.rotation.x += 0.04;
+                    tile.rotation.z += 0.03;
+                    if (tileSprites[idx]) {
+                        tileSprites[idx].position.y = tile.position.y + 1.35;
+                    }
+                } else {
+                    tile.position.y = 0.1 + Math.sin(elapsed * 3 + idx) * 0.04;
+                    if (tileSprites[idx]) {
+                        tileSprites[idx].position.y = tile.position.y + 1.35;
+                    }
+                }
+            });
+
+            if (charState.isJumping) {
+                charState.jumpProgress += delta * (gameState.isJumpingToIsland ? 1.45 : 1.75);
+                if (charState.jumpProgress >= 1) {
+                    charState.jumpProgress = 1;
+                    charState.isJumping = false;
+                }
+
+                const t = charState.jumpProgress;
+                charState.currentPos.lerpVectors(charState.startPosJump, charState.targetPos, t);
+                const arc = Math.sin(t * Math.PI) * charState.jumpHeight;
+                robloxCharacter.position.set(
+                    charState.currentPos.x,
+                    charState.currentPos.y + arc,
+                    charState.currentPos.z
+                );
+
+                leftArm.rotation.x = Math.PI * 0.85;
+                rightArm.rotation.x = Math.PI * 0.85;
+                leftLeg.rotation.x = -0.45;
+                rightLeg.rotation.x = 0.45;
+
+                camControl.targetFocus.set(robloxCharacter.position.x + 1.4, 1.6, robloxCharacter.position.z * 0.5);
+
+            } else if (charState.falling) {
+                charState.fallVelocity += 0.015;
+                robloxCharacter.position.y -= charState.fallVelocity;
+                robloxCharacter.rotation.z += 0.05;
+                leftArm.rotation.x = Math.PI * 0.95;
+                rightArm.rotation.x = Math.PI * 0.95;
+
+            } else if (charState.celebrating) {
+                const bounce = Math.abs(Math.sin(elapsed * 8)) * 0.45;
+                robloxCharacter.position.y = charState.startPos.y + bounce;
+                leftArm.rotation.x = Math.PI;
+                rightArm.rotation.x = Math.PI;
+                leftLeg.rotation.x = 0;
+                rightLeg.rotation.x = 0;
+                camControl.targetFocus.set(charState.startPos.x + 1.8, 1.6, 0);
+
+            } else {
+                robloxCharacter.position.y = charState.startPos.y + Math.sin(elapsed * 3) * 0.03;
+                leftArm.rotation.x = Math.sin(elapsed * 2.5) * 0.12;
+                rightArm.rotation.x = -Math.sin(elapsed * 2.5) * 0.12;
+                leftLeg.rotation.x = 0;
+                rightLeg.rotation.x = 0;
+            }
+
+            camControl.currentFocus.lerp(camControl.targetFocus, 0.08);
+            const horizDist = camControl.distance * Math.cos(camControl.pitch);
+            const vertDist = camControl.distance * Math.sin(camControl.pitch);
+            camera.position.set(
+                camControl.currentFocus.x - horizDist * Math.sin(camControl.yaw),
+                camControl.currentFocus.y + vertDist,
+                camControl.currentFocus.z + horizDist * Math.cos(camControl.yaw)
+            );
+            camera.lookAt(camControl.currentFocus);
+
+            for (let i = confettiParticles.length - 1; i >= 0; i--) {
+                const p = confettiParticles[i];
+                p.mesh.position.x += p.vx;
+                p.mesh.position.y += p.vy;
+                p.mesh.position.z += p.vz;
+                p.vy -= 0.008;
+                p.mesh.rotation.x += p.rx;
+                p.mesh.rotation.y += p.ry;
+
+                if (p.mesh.position.y < -2) {
+                    scene.remove(p.mesh);
+                    confettiParticles.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function () {
+            init3DWorld();
+            animate();
+        };
+    </script>
+</body>
+</html>
